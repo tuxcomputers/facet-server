@@ -8,15 +8,38 @@ it: there is no account, no server, and no way for two people using it to see ea
 This repo is what changes that. Each person keeps recording exactly as they do now, the app posts
 each entry to this API as it is recorded, and a team leader reports across everybody from one place.
 
-**Nothing is built yet.** The repo holds design notes and this README. No stack has been chosen, no
-API surface is fixed, and everything below is the intended shape rather than a description of
-running code.
+**Barely any of it is built.** What runs today is a Postgres schema for a person and their auth
+identities, and the Docker stack that carries it. There is no API surface yet, so everything below
+about sync and reporting is the intended shape rather than a description of running code.
+
+The stack is Python, SQLAlchemy, Postgres and Alembic, linted with ruff, and all of it runs in
+Docker.
 
 ## What is here
 
 | Path | What it is |
 | --- | --- |
+| `facet_server/models/` | SQLAlchemy models. `facet_user` and `auth_identity` so far. |
+| `alembic/` | Migrations. `alembic upgrade head` builds the schema. |
+| `docker-compose.yml` | The `postgres` and `server` containers, and how they are wired. |
+| `docker/postgres/init/` | Seeds a fresh database, including the separate `facet_test`. |
+| `localdata/` | Postgres's data directory, bind-mounted and gitignored. |
 | `docs/google-auth-linking.md` | How one person's desktop app and website sessions resolve to a single internal user, via a server-verified Google `sub`. |
+
+## Running it
+
+```
+docker compose up -d --build
+```
+
+That brings up Postgres and applies the migrations. Postgres is published on `localhost:5432`,
+database `facet`, user `facet`, password `facet_password`. Everything else runs inside the
+container: `docker compose exec server ruff check .`, `docker compose exec server pytest`,
+`docker compose exec postgres psql -U facet -d facet`.
+
+The database lives in `localdata/postgresdata`. Delete the `pgdata` subdirectory inside it to
+start over, keeping the directory itself, which the bind mount needs in place before Postgres
+starts.
 
 ## What it is for
 
@@ -83,7 +106,7 @@ grouping.
 
 ## Not decided yet
 
-- Language, framework, database and where it runs.
+- The web framework, and where any of this runs in production.
 - Whether the desktop app talks to Google directly or routes the whole OAuth flow through this
   backend (the open question at the end of the auth doc).
 - Whether an entry can be edited or deleted after it has synced. The app cannot yet correct a

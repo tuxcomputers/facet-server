@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.docker/
+.DS_Store
+.env
+
+# Postgres's data directory is bind-mounted here by docker-compose: one machine's database
+# files, not source. The directory itself is kept (an empty .gitkeep) because the bind mount
+# needs it to exist before the container starts, and Compose's create_host_path does not
+# reliably create it on Docker Desktop. Everything inside it is ignored.
+localdata/*
+!localdata/postgresdata/
+localdata/postgresdata/*
+!localdata/postgresdata/.gitkeep

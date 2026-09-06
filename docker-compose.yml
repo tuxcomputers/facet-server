@@ -1,0 +1,54 @@
+name: facet-server
+
+services:
+  postgres:
+    image: postgres:17.6-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: facet
+      POSTGRES_PASSWORD: facet_password
+      POSTGRES_DB: facet
+      # Initialise into a subdirectory of the mount rather than the mount itself: a bind
+      # mount from macOS is not the empty directory initdb insists on.
+      PGDATA: /var/lib/postgresql/data/pgdata
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U facet -d facet"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      # The host directory must exist before this starts: a bind mount whose source is
+      # missing leaves /var/lib/postgresql/data absent in the container, and Postgres dies
+      # with "can't create directory /var/lib/postgresql/data/pgdata". create_host_path is
+      # asked for below but does not reliably deliver on Docker Desktop, which is why
+      # localdata/postgresdata/.gitkeep is committed. Reset the database by deleting the
+      # pgdata subdirectory, not this directory.
+      - type: bind
+        source: ./localdata/postgresdata
+        target: /var/lib/postgresql/data
+        bind:
+          create_host_path: true
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      - bash
+      - -lc
+      - >
+        alembic upgrade head &&
+        tail -f /dev/null
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+psycopg://facet:facet_password@postgres:5432/facet
+      TEST_DATABASE_URL: postgresql+psycopg://facet:facet_password@postgres:5432/facet_test
+      PYTHONPATH: /workspace
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
